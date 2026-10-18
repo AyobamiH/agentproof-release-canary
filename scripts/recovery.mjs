@@ -1,5 +1,19 @@
 import assert from 'node:assert/strict';
 
+export async function readServiceResponse(response) {
+  try {
+    const raw=await response.text();
+    assert(raw.length<=300000,'oversized service response');
+    return {status:response.status,body:JSON.parse(raw)};
+  } catch (error) {
+    // Intermediary 5xx bodies need not be JSON. Preserve status for the
+    // preparation-only retry policy without retaining an untrusted error body.
+    error.status=response.status;
+    throw error;
+  }
+}
+
+
 // Retry only idempotent preparation operations within the current attempt.
 // Execute is deliberately absent from this allowlist.
 export async function retryPreparation(successful, save, role, path, body, options) {
@@ -36,13 +50,10 @@ export async function resumeUnexecuted({predecessor,subject,githubRunId,successf
   assert.equal(run.transactionId,predecessor.transactionId);assert.equal(run.githubRunId,githubRunId);
   assert.equal(run.authorisationHistory.length,1);
   assert.equal(run.authorisationHistory[0].githubRunId,predecessor.githubRunId);
-  assert.deepEqual(await successful('donestate','/v1/recover',body),run);
-  await save('recovery-duplicate',{identical:true});
   assert(run.recoveryAuthorisation);
   const activation={request:prepared.request,recoveryAuthorisation:run.recoveryAuthorisation};
   const active=await prepare('approval','/v1/activate',activation,{publisher:true});
   assert.equal(active.state,'reserved');assert.match(active.recoveryAuthorisationDigest,/^[a-f0-9]{64}$/);
-  assert.deepEqual(await successful('approval','/v1/activate',activation,{publisher:true}),active);
   await save('recovery-activation',active);
   return run;
 }

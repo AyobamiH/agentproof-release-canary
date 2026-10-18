@@ -1,4 +1,4 @@
-import { resumeUnexecuted, readExistingAuthorisation } from './recovery.mjs';
+import { resumeUnexecuted, readExistingAuthorisation, readServiceResponse } from './recovery.mjs';
 import { validateHealth } from './health.mjs';
 import { reconcilePublication } from './publication.mjs';
 import assert from 'node:assert/strict';
@@ -64,8 +64,7 @@ async function call(role, path, body, { publisher = false, anonymous = false, au
     method: 'POST', headers, body: JSON.stringify(body), redirect: 'error',
     signal: AbortSignal.timeout(45000),
   });
-  const raw = await response.text(); assert(raw.length <= 300000, 'oversized service response');
-  return { status: response.status, body: JSON.parse(raw) };
+  return readServiceResponse(response);
 }
 async function successful(role, path, body, options) {
   const r = await call(role, path, body, options);

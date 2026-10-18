@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resumeUnexecuted, readExistingAuthorisation, retryPreparation } from './recovery.mjs';
+import { resumeUnexecuted, readExistingAuthorisation, retryPreparation, readServiceResponse } from './recovery.mjs';
 const predecessor={githubRunId:'100',workflowSha:'a'.repeat(40),runId:'1'.repeat(36),transactionId:'2'.repeat(36)};
 test('recovery reserves inside publisher scope, preserves predecessor, never invokes execution',async()=>{
   const calls=[],saved=[],subject={releaseId:416342082};
@@ -15,8 +15,8 @@ test('recovery reserves inside publisher scope, preserves predecessor, never inv
     assert.equal(body.runId,predecessor.runId);assert.equal(body.previousGithubRunId,'100');return run;
   };
   assert.deepEqual(await resumeUnexecuted({predecessor,subject,githubRunId:'101',successful,save:async(name)=>saved.push(name)}),run);
-  assert.deepEqual(calls.map(x=>x.path),['/v1/prepare','/v1/recover','/v1/recover','/v1/activate','/v1/activate']);
-  assert.deepEqual(saved,['recovery-reservation','recovery-duplicate','recovery-activation']);
+  assert.deepEqual(calls.map(x=>x.path),['/v1/prepare','/v1/recover','/v1/activate']);
+  assert.deepEqual(saved,['recovery-reservation','recovery-activation']);
 });
 test('attempted, missing or wrong-seed reservation stops before DoneState recovery',async()=>{
   for(const mode of ['attempted','missing','wrong']){
@@ -65,7 +65,7 @@ test('same-attempt lost responses retry each preparation operation without execu
   };
   assert.deepEqual(await resumeUnexecuted({predecessor,subject:{releaseId:416342082},githubRunId:'101',successful,
     save:async(name)=>{assert(!saved.includes(name));saved.push(name);}}),run);
-  assert.deepEqual(count,{'/v1/prepare':2,'/v1/recover':3,'/v1/activate':3});
+  assert.deepEqual(count,{'/v1/prepare':2,'/v1/recover':2,'/v1/activate':2});
   assert.equal(saved.filter(n=>n.startsWith('retry-')).length,3);
 });
 test('retries are bounded, policy denials and execute never retry',async()=>{
@@ -77,4 +77,22 @@ test('retries are bounded, policy denials and execute never retry',async()=>{
     async()=>{},'donestate','/v1/recover',{}),/denied/);assert.equal(count,1);
   await assert.rejects(retryPreparation(async()=>{count++;},async()=>{},'approval','/v1/execute',{}));
   assert.equal(count,1);
+});
+
+
+test('plain-text and HTML 5xx preserve retry status; malformed success does not retry',async()=>{
+  let calls=0;
+  const result=await retryPreparation(async()=>{
+    calls++;
+    const response=calls===1?new Response('<html>unavailable</html>',{status:502}):
+      calls===2?new Response('temporarily unavailable',{status:503}):
+      new Response('{"state":"reserved"}',{status:200});
+    return (await readServiceResponse(response)).body;
+  },async()=>{},'approval','/v1/prepare',{});
+  assert.equal(calls,3);assert.deepEqual(result,{state:'reserved'});
+  calls=0;
+  await assert.rejects(retryPreparation(async()=>{calls++;
+    return readServiceResponse(new Response('malformed success',{status:200}));
+  },async()=>{},'approval','/v1/activate',{}),SyntaxError);
+  assert.equal(calls,1);
 });

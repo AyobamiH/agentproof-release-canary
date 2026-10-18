@@ -68,3 +68,8 @@ cannot authorise a later attempt to publish. Preserve the unused fence and all a
 history for fresh reviewed authorisation; do not reset the fence, create a new target or
 infer permission from a rerun. Later attempts may only read back an already attempted effect,
 with the original signed grant and producing attempt retained.
+
+The three-call preparation limit includes all recovery/activation calls; there are no extra
+duplicate probes after success. Source tests cover duplicate service requests. HTTP status
+survives non-JSON error responses, so intermediary 5xx failures use the same bounded retry
+policy. Malformed success and policy refusal responses stop without widening authority.
