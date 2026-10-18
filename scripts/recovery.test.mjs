@@ -14,7 +14,9 @@ test('recovery reserves inside publisher scope, preserves predecessor, never inv
     assert.equal(role,'donestate');assert.equal(path,'/v1/recover');assert.equal(options,undefined);
     assert.equal(body.runId,predecessor.runId);assert.equal(body.previousGithubRunId,'100');return run;
   };
-  assert.deepEqual(await resumeUnexecuted({predecessor,subject,githubRunId:'101',successful,save:async(name)=>saved.push(name)}),run);
+  const recovered=await resumeUnexecuted({predecessor,subject,githubRunId:'101',successful,save:async(name)=>saved.push(name)});
+  assert.deepEqual(recovered.run,run);assert.equal(recovered.prepared.state,'reserved');
+  assert.deepEqual(recovered.prepared.request.subject,subject);
   assert.deepEqual(calls.map(x=>x.path),['/v1/prepare','/v1/recover','/v1/activate']);
   assert.deepEqual(saved,['recovery-reservation','recovery-activation']);
 });
@@ -63,8 +65,9 @@ test('same-attempt lost responses retry each preparation operation without execu
     if(path==='/v1/recover')return run;
     return {state:'reserved',recoveryAuthorisationDigest:'a'.repeat(64)};
   };
-  assert.deepEqual(await resumeUnexecuted({predecessor,subject:{releaseId:416342082},githubRunId:'101',successful,
-    save:async(name)=>{assert(!saved.includes(name));saved.push(name);}}),run);
+  const recovered=await resumeUnexecuted({predecessor,subject:{releaseId:416342082},githubRunId:'101',successful,
+    save:async(name)=>{assert(!saved.includes(name));saved.push(name);}});
+  assert.deepEqual(recovered.run,run);assert.deepEqual(recovered.prepared.request,{...bodies['/v1/prepare'].seed,approval:{}});
   assert.deepEqual(count,{'/v1/prepare':2,'/v1/recover':2,'/v1/activate':2});
   assert.equal(saved.filter(n=>n.startsWith('retry-')).length,3);
 });
@@ -106,5 +109,16 @@ test('untrusted intermediary text is absent from propagated parse failures',asyn
       assert.equal(error.message,'malformed_service_response');
       return true;
     });
+  }
+});
+
+
+test('known policy status prevents retry even when response body reading loses the connection',async()=>{
+  for(const status of [400,401,403,409]) {
+    let calls=0;
+    await assert.rejects(retryPreparation(async()=>{calls++;
+      return readServiceResponse({status,text:async()=>{throw new TypeError('connection lost');}});
+    },async()=>{},'approval','/v1/prepare',{}),e=>e.status===status);
+    assert.equal(calls,1);
   }
 });

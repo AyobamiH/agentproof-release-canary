@@ -77,3 +77,8 @@ policy. Malformed success and policy refusal responses stop without widening aut
 Parse/read errors are sanitised before failure artifacts are written. HTTP status
 and the safe error class remain available for retry decisions; raw intermediary
 response text is never copied into the propagated error message.
+
+The publication step reuses the exact prepared request returned by recovery; it does not
+repeat preparation after activation. A known 4xx status always stops, including when its
+response-body read fails. Transport errors qualify for retry only before an HTTP status
+is known; 5xx statuses retain the bounded retry behavior.

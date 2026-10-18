@@ -108,9 +108,10 @@ async function authorize() {
 async function publish() {
   const prior = await load('authorised-predecessor');
   assert.equal(prior.runId, trust.recovery.runId);
-  const run = process.env.GITHUB_RUN_ATTEMPT === '1' ?
+  const recovery = process.env.GITHUB_RUN_ATTEMPT === '1' ?
     await resumeUnexecuted({predecessor:trust.recovery,subject:trust.subject,
-      githubRunId:process.env.GITHUB_RUN_ID,successful,save}) :
+      githubRunId:process.env.GITHUB_RUN_ID,successful,save}) : null;
+  const run = recovery ? recovery.run :
     await readExistingAuthorisation({githubRunId:process.env.GITHUB_RUN_ID,call,save});
   assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
   await save('authorised',run);
@@ -123,7 +124,8 @@ async function publish() {
     seed: { ...seed, subject: { ...seed.subject, releaseId: seed.subject.releaseId + 1 } },
   }, { publisher: true });
   assert.equal(wrong.status, 403); await save('wrong-target-denial', wrong);
-  const prepared = await successful('approval', '/v1/prepare', { seed }, { publisher: true });
+  const prepared = recovery ? recovery.prepared :
+    await successful('approval', '/v1/prepare', { seed }, { publisher: true });
   if (process.env.GITHUB_RUN_ATTEMPT === '1') assert.equal(prepared.state, 'reserved');
   await save('prepared', prepared);
   const { request } = prepared;

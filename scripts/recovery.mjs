@@ -26,8 +26,8 @@ export async function retryPreparation(successful, save, role, path, body, optio
   for (let attempt=1; attempt<=3; attempt++) {
     try { return await successful(role,path,body,options); }
     catch (error) {
-      const transient = error.status >= 500 ||
-        ['TypeError','AbortError','TimeoutError'].includes(error.name);
+      const transient = error.status >= 500 || (error.status === undefined &&
+        ['TypeError','AbortError','TimeoutError'].includes(error.name));
       if (!transient || attempt===3) throw error;
       await save('retry-'+path.slice(4)+'-'+attempt, {operation:path,attempt,
         status:error.status ?? null,reason:error.name});
@@ -60,7 +60,7 @@ export async function resumeUnexecuted({predecessor,subject,githubRunId,successf
   const active=await prepare('approval','/v1/activate',activation,{publisher:true});
   assert.equal(active.state,'reserved');assert.match(active.recoveryAuthorisationDigest,/^[a-f0-9]{64}$/);
   await save('recovery-activation',active);
-  return run;
+  return {run,prepared};
 }
 
 // A rerun may read existing authority; it cannot mint/activate a grant for
