@@ -8,8 +8,13 @@ export async function readServiceResponse(response) {
   } catch (error) {
     // Intermediary 5xx bodies need not be JSON. Preserve status for the
     // preparation-only retry policy without retaining an untrusted error body.
-    error.status=response.status;
-    throw error;
+    const failure = error instanceof SyntaxError ?
+      new SyntaxError('malformed_service_response') :
+      error instanceof TypeError ? new TypeError('service_response_unavailable') :
+      new Error('service_response_unavailable');
+    if (['AbortError','TimeoutError'].includes(error.name)) failure.name=error.name;
+    failure.status=response.status;
+    throw failure;
   }
 }
 

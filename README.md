@@ -73,3 +73,7 @@ The three-call preparation limit includes all recovery/activation calls; there a
 duplicate probes after success. Source tests cover duplicate service requests. HTTP status
 survives non-JSON error responses, so intermediary 5xx failures use the same bounded retry
 policy. Malformed success and policy refusal responses stop without widening authority.
+
+Parse/read errors are sanitised before failure artifacts are written. HTTP status
+and the safe error class remain available for retry decisions; raw intermediary
+response text is never copied into the propagated error message.

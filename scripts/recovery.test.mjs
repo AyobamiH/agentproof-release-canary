@@ -96,3 +96,15 @@ test('plain-text and HTML 5xx preserve retry status; malformed success does not 
   },async()=>{},'approval','/v1/activate',{}),SyntaxError);
   assert.equal(calls,1);
 });
+
+test('untrusted intermediary text is absent from propagated parse failures',async()=>{
+  for(const status of [200,502,503]){
+    await assert.rejects(readServiceResponse(new Response('UNTRUSTED_RESPONSE_SENTINEL',{status})),error=>{
+      assert.equal(error.status,status);
+      assert(error instanceof SyntaxError);
+      assert(!error.message.includes('UNTRUSTED_RESPONSE_SENTINEL'));
+      assert.equal(error.message,'malformed_service_response');
+      return true;
+    });
+  }
+});
