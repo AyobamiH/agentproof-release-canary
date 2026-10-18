@@ -21,3 +21,20 @@ Owner: AyobamiH / AgentProof, OpsTruth and DoneState maintainers. To disable, se
 No deployment, signing secret, package publication, automatic retry or destructive cleanup is performed by PR validation. Main requires protected PR merging. The environment admits protected branches only.
 
 Health preflight separately compares each reviewed service build revision and the permitted workflow revision. Handoff artifact names come from successful producing-job outputs, so GitHub Re-run failed jobs can consume artifacts from an earlier successful prerequisite attempt.
+
+
+## Preserved first attempt and unexecuted recovery
+
+[Run 39118530819](https://github.com/AyobamiH/agentproof-release-canary/actions/runs/39118530819)
+failed in preparation because the release adapter omitted GitHub's required User-Agent.
+The release remained a draft and there was no execute request. Its original authorisation
+and artifacts remain intact. The reviewed replacement uses the same release, tag, assets,
+transaction and all five signing keys. `trust.json` explicitly pins the predecessor.
+
+The authorizer's contents-read credential goes only to AgentProof `/v1/prepare`, which can
+observe the private draft and atomically claim the existing permanent release fence.
+The signed reservation is then passed to DoneState's strictly predecessor-configured recovery.
+DoneState retains the full prior authorisation, appends an audit event and requires execution
+after recovery. No fence is reset, ambiguous execution retried, receipt rewritten or new draft created.
+Only the separate publish job has contents-write. The receipt signer, OpsTruth and DoneState
+never receive that credential. Any changed seed already reserved or attempted remains refused.

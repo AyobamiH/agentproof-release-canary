@@ -1,3 +1,4 @@
+import { resumeUnexecuted } from './recovery.mjs';
 import { validateHealth } from './health.mjs';
 import { reconcilePublication } from './publication.mjs';
 import assert from 'node:assert/strict';
@@ -51,13 +52,18 @@ async function oidc(role) {
   assert.equal(response.status, 200, 'OIDC acquisition failed');
   const value = (await response.json()).value; assert.equal(typeof value, 'string'); return value;
 }
-async function call(role, path, body, { publisher = false, anonymous = false, audience = role } = {}) {
+async function call(role, path, body, { publisher = false, observer = false, anonymous = false, audience = role } = {}) {
   assert(!publisher || role === 'approval', 'publisher credential crossed authority boundary');
+  assert(!observer || (!publisher && role === 'approval' && path === '/v1/prepare'), 'observer credential crossed read boundary');
   const headers = { 'content-type': 'application/json' };
   if (!anonymous) headers.authorization = 'Bearer ' + await oidc(audience);
   if (publisher) {
     assert(process.env.PUBLISHER_TOKEN, 'publisher credential unavailable');
     headers['x-github-token'] = process.env.PUBLISHER_TOKEN;
+  }
+  if (observer) {
+    assert(process.env.OBSERVER_TOKEN, 'read credential unavailable');
+    headers['x-github-token'] = process.env.OBSERVER_TOKEN;
   }
   const response = await fetch(endpoints[role] + path, {
     method: 'POST', headers, body: JSON.stringify(body), redirect: 'error',
@@ -91,7 +97,9 @@ async function authorize() {
   assert.equal(cross.status, 401); denied.push({ role: 'donestate', test: 'wrong_audience', ...cross });
   await save('identity-denials', denied);
   const recovery = process.env.GITHUB_RUN_ATTEMPT !== '1';
-  const run = await successful('donestate', recovery ? '/v1/status' : '/v1/start', {});
+  const run = recovery ? await successful('donestate', '/v1/status', {}) :
+    await resumeUnexecuted({ predecessor: trust.recovery, subject: trust.subject,
+      githubRunId: process.env.GITHUB_RUN_ID, successful, save });
   if (!recovery) assert.equal(run.status, 'AUTHORISED'); assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
   assert.deepEqual(run.subject, trust.subject); assert.equal(run.subjectDigest, trust.subjectDigest);
   await save('authorised', run);
