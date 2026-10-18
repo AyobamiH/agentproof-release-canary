@@ -82,3 +82,16 @@ The publication step reuses the exact prepared request returned by recovery; it 
 repeat preparation after activation. A known 4xx status always stops, including when its
 response-body read fails. Transport errors qualify for retry only before an HTTP status
 is known; 5xx statuses retain the bounded retry behavior.
+
+
+## Workers-runtime repair acceptance — 18 October 2026
+
+Run [39122966755](https://github.com/AyobamiH/agentproof-release-canary/actions/runs/39122966755)
+failed at preparation before recovery or execution: Workers rejects the earlier
+`redirect: "error"` fetch mode. Reviewed AgentProof [PR #22](https://github.com/AyobamiH/agentproof/pull/22)
+uses manual redirects with unchanged exact-200 refusal and has passed a real
+Workers-runtime GET-only probe of the existing draft. The trust source now pins its
+actual merge `74c12b4e42c8109d34e4764fa0e4864513cab4a9`.
+
+The original predecessor authorisation, target, keys and recovery protocol remain
+unchanged. This source pin is not a publication or independent acceptance claim.
