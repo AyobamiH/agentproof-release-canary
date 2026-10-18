@@ -69,7 +69,10 @@ async function call(role, path, body, { publisher = false, anonymous = false, au
 }
 async function successful(role, path, body, options) {
   const r = await call(role, path, body, options);
-  assert.equal(r.status, 200, role + ' refused: ' + r.body.error); return r.body;
+  if (r.status !== 200) {
+    const error=new Error(role+' refused: '+r.body.error);error.status=r.status;throw error;
+  }
+  return r.body;
 }
 async function health() {
   const result = {};

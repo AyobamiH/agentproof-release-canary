@@ -57,3 +57,14 @@ interrupted pre-execution authorisation under a different producing attempt
 requires a separately reviewed authority transition. This explicit limitation
 preserves DoneState's same-attempt grant contract; rerun is not a general liveness
 guarantee for every interrupted phase.
+
+
+Preparation, DoneState recovery and AgentProof activation retry a lost response or transient
+server failure at most twice within the original workflow attempt. Each retry is the same
+idempotent operation and its evidence is saved. Publication is never retried.
+If the runner dies before execution, a later attempt records BLOCKED_REAUTHORISATION with the incomplete-authority or
+unattempted-reservation reason and stops. This is an explicit refusal boundary: the first-attempt grant
+cannot authorise a later attempt to publish. Preserve the unused fence and all authority
+history for fresh reviewed authorisation; do not reset the fence, create a new target or
+infer permission from a rerun. Later attempts may only read back an already attempted effect,
+with the original signed grant and producing attempt retained.

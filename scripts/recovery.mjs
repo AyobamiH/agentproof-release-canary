@@ -1,4 +1,21 @@
 import assert from 'node:assert/strict';
+
+// Retry only idempotent preparation operations within the current attempt.
+// Execute is deliberately absent from this allowlist.
+export async function retryPreparation(successful, save, role, path, body, options) {
+  assert(['approval:/v1/prepare','donestate:/v1/recover','approval:/v1/activate'].includes(role+':'+path));
+  for (let attempt=1; attempt<=3; attempt++) {
+    try { return await successful(role,path,body,options); }
+    catch (error) {
+      const transient = error.status >= 500 ||
+        ['TypeError','AbortError','TimeoutError'].includes(error.name);
+      if (!transient || attempt===3) throw error;
+      await save('retry-'+path.slice(4)+'-'+attempt, {operation:path,attempt,
+        status:error.status ?? null,reason:error.name});
+    }
+  }
+}
+
 export async function resumeUnexecuted({predecessor,subject,githubRunId,successful,save}) {
   assert.match(githubRunId,/^[1-9]\d+$/);assert.notEqual(githubRunId,predecessor.githubRunId);
   assert.match(predecessor.workflowSha,/^[a-f0-9]{40}$/);
@@ -7,13 +24,14 @@ export async function resumeUnexecuted({predecessor,subject,githubRunId,successf
   const seed={stateDirectory:'/tmp/agentproof-release-canary-'+githubRunId,
     transactionId:predecessor.transactionId,nonce:'release-canary:'+githubRunId,
     idempotencyKey:'release-canary:'+githubRunId,subject};
-  const prepared=await successful('approval','/v1/prepare',{seed},{publisher:true});
+  const prepare=(role,path,body,options)=>retryPreparation(successful,save,role,path,body,options);
+  const prepared=await prepare('approval','/v1/prepare',{seed},{publisher:true});
   assert.equal(prepared.state,'reserved');assert(prepared.reservation);
   assert.deepEqual({...prepared.request,approval:undefined},{...seed,approval:undefined});
   await save('recovery-reservation',prepared);
   const body={runId:predecessor.runId,previousGithubRunId:predecessor.githubRunId,
     request:prepared.request,reservation:prepared.reservation};
-  const run=await successful('donestate','/v1/recover',body);
+  const run=await prepare('donestate','/v1/recover',body);
   assert.equal(run.status,'AUTHORISED');assert.equal(run.runId,predecessor.runId);
   assert.equal(run.transactionId,predecessor.transactionId);assert.equal(run.githubRunId,githubRunId);
   assert.equal(run.authorisationHistory.length,1);
@@ -22,7 +40,7 @@ export async function resumeUnexecuted({predecessor,subject,githubRunId,successf
   await save('recovery-duplicate',{identical:true});
   assert(run.recoveryAuthorisation);
   const activation={request:prepared.request,recoveryAuthorisation:run.recoveryAuthorisation};
-  const active=await successful('approval','/v1/activate',activation,{publisher:true});
+  const active=await prepare('approval','/v1/activate',activation,{publisher:true});
   assert.equal(active.state,'reserved');assert.match(active.recoveryAuthorisationDigest,/^[a-f0-9]{64}$/);
   assert.deepEqual(await successful('approval','/v1/activate',activation,{publisher:true}),active);
   await save('recovery-activation',active);

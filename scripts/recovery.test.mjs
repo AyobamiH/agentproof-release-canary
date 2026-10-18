@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resumeUnexecuted, readExistingAuthorisation } from './recovery.mjs';
+import { resumeUnexecuted, readExistingAuthorisation, retryPreparation } from './recovery.mjs';
 const predecessor={githubRunId:'100',workflowSha:'a'.repeat(40),runId:'1'.repeat(36),transactionId:'2'.repeat(36)};
 test('recovery reserves inside publisher scope, preserves predecessor, never invokes execution',async()=>{
   const calls=[],saved=[],subject={releaseId:416342082};
@@ -45,4 +45,36 @@ test('reruns inspect durable authority without issuing or activating a new grant
   const result=await readExistingAuthorisation({githubRunId:'101',
     call:async(role,path)=>{assert.equal(path,'/v1/status');return{status:200,body:run};},save:async()=>{}});
   assert.deepEqual(result,run);
+});
+
+
+test('same-attempt lost responses retry each preparation operation without execution',async()=>{
+  const predecessor={githubRunId:'100',workflowSha:'a'.repeat(40),runId:'1'.repeat(36),transactionId:'2'.repeat(36)};
+  const run={status:'AUTHORISED',runId:predecessor.runId,transactionId:predecessor.transactionId,
+    githubRunId:'101',recoveryAuthorisation:{signed:true},authorisationHistory:[{githubRunId:'100'}]};
+  const count={}, saved=[], bodies={};
+  const successful=async(role,path,body)=>{
+    assert(['/v1/prepare','/v1/recover','/v1/activate'].includes(path));
+    count[path]=(count[path]||0)+1;
+    if(bodies[path]) assert.deepEqual(body,bodies[path]);else bodies[path]=structuredClone(body);
+    // The service durably saved the response, but the caller lost it.
+    if(count[path]===1)throw new TypeError('fetch failed');
+    if(path==='/v1/prepare')return {state:'reserved',request:{...body.seed,approval:{}},reservation:{signed:true}};
+    if(path==='/v1/recover')return run;
+    return {state:'reserved',recoveryAuthorisationDigest:'a'.repeat(64)};
+  };
+  assert.deepEqual(await resumeUnexecuted({predecessor,subject:{releaseId:416342082},githubRunId:'101',successful,
+    save:async(name)=>{assert(!saved.includes(name));saved.push(name);}}),run);
+  assert.deepEqual(count,{'/v1/prepare':2,'/v1/recover':3,'/v1/activate':3});
+  assert.equal(saved.filter(n=>n.startsWith('retry-')).length,3);
+});
+test('retries are bounded, policy denials and execute never retry',async()=>{
+  let count=0;
+  await assert.rejects(retryPreparation(async()=>{count++;throw Object.assign(new Error('outage'),{status:503});},
+    async()=>{},'approval','/v1/prepare',{}),/outage/);assert.equal(count,3);
+  count=0;
+  await assert.rejects(retryPreparation(async()=>{count++;throw Object.assign(new Error('denied'),{status:403});},
+    async()=>{},'donestate','/v1/recover',{}),/denied/);assert.equal(count,1);
+  await assert.rejects(retryPreparation(async()=>{count++;},async()=>{},'approval','/v1/execute',{}));
+  assert.equal(count,1);
 });
