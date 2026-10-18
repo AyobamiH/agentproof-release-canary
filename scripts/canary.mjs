@@ -1,3 +1,4 @@
+import { validateHealth } from './health.mjs';
 import { reconcilePublication } from './publication.mjs';
 import assert from 'node:assert/strict';
 import { createHash, createPublicKey } from 'node:crypto';
@@ -74,9 +75,7 @@ async function health() {
   for (const [role, base] of Object.entries(endpoints)) {
     const r = await fetch(base + '/health', { redirect: 'error', signal: AbortSignal.timeout(15000) });
     assert.equal(r.status, 200); result[role] = await r.json();
-    assert.equal(result[role].enabled, true);
-    assert.equal(role === 'donestate' ? result[role].trustedWorkflowCommit : result[role].sourceCommit, process.env.GITHUB_SHA);
-    if (role === 'donestate') assert.equal(result[role].sourceCommit, trust.sources.donestate);
+    validateHealth(role, result[role], process.env.GITHUB_SHA, trust.sources);
   }
   await save('deployed-health', result);
 }

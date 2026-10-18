@@ -8,6 +8,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   authorize:
+    outputs:
+      artifact_name: authorization-${{ github.run_attempt }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: agentproof-release-canary
@@ -30,6 +32,8 @@ jobs:
           if-no-files-found: error
           retention-days: 90
   publish:
+    outputs:
+      artifact_name: publication-${{ github.run_attempt }}
     needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -46,7 +50,7 @@ jobs:
           node-version: 24
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: authorization-${{ github.run_attempt }}
+          name: ${{ needs.authorize.outputs.artifact_name }}
           path: evidence/
       - run: node scripts/canary.mjs publish
         env:
@@ -94,7 +98,7 @@ jobs:
         working-directory: vendor/donestate
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: publication-${{ github.run_attempt }}
+          name: ${{ needs.publish.outputs.artifact_name }}
           path: evidence/
       - run: node canary/scripts/canary.mjs verify
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -18,4 +18,4 @@ jobs:
       - run: node --check scripts/canary.mjs
       - run: node --check scripts/source-pins.mjs
       - run: node scripts/canary.mjs validate
-      - run: node --test scripts/publication.test.mjs
+      - run: node --test scripts/*.test.mjs

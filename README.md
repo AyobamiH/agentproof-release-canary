@@ -19,3 +19,5 @@ Each attempt has separately named, immutable Actions evidence artifacts. They in
 Owner: AyobamiH / AgentProof, OpsTruth and DoneState maintainers. To disable, set ENABLED=false independently on the four release-only Workers using the accepted source and preserved secret bindings. Do not alter existing patch Workers or the OpsTruth MCP. Disable never deletes durable claims, evidence, tags or releases, and re-enabling cannot reissue a consumed publication.
 
 No deployment, signing secret, package publication, automatic retry or destructive cleanup is performed by PR validation. Main requires protected PR merging. The environment admits protected branches only.
+
+Health preflight separately compares each reviewed service build revision and the permitted workflow revision. Handoff artifact names come from successful producing-job outputs, so GitHub Re-run failed jobs can consume artifacts from an earlier successful prerequisite attempt.
