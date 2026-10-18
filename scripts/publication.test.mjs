@@ -46,3 +46,14 @@ test('failed durable intent capture prevents execution', async () => {
   await assert.rejects(reconcilePublication(f.args), /intent storage/);
   assert.equal(f.mutations(), 0); assert.deepEqual(f.calls, []);
 });
+
+test('an unattempted reservation is explicitly blocked without a publication retry', async () => {
+  const f = fixture({ attempt: 2 });
+  f.args.invoke = async path => {
+    f.calls.push(path);assert.equal(path,'/v1/reconcile');
+    return {status:200,body:{state:'reserved',completion:null}};
+  };
+  await assert.rejects(reconcilePublication(f.args),/BLOCKED_REAUTHORISATION/);
+  assert.deepEqual(f.calls,['/v1/reconcile']);assert.equal(f.mutations(),0);
+  assert.equal(f.saved.get('recovery-blocked').reason,'reservation_unattempted');
+});

@@ -9,7 +9,9 @@ export function validateHealth(role, health, workflowSha, sources) {
   assert.equal(health.trustedWorkflowCommit, workflowSha, 'caller workflow revision mismatch');
   assert.equal(role === 'donestate' ? health.sourceCommit : health.serviceSourceCommit,
     sources[sourceRoles[role]], 'deployed service revision mismatch');
-  if (role === 'approval' || role === 'receipt')
+  if (role === 'approval' || role === 'receipt') {
     assert.equal(health.role, role === 'approval' ? 'approval' : 'signing');
+    assert.equal(health.recoveryRequired,true,'causal recovery gate must be required on both roles');
+  }
   if (role === 'opstruth') assert.equal(health.readOnly, true);
 }

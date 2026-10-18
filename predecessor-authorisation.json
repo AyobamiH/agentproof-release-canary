@@ -1,0 +1,53 @@
+{
+  "schema": "donestate.release-canary-run.v1",
+  "runId": "12741172-631f-47b4-88c2-a63eeb1f9574",
+  "transactionId": "38cec4aa-b4d9-43fe-9712-e5eaec86cf21",
+  "githubRunId": "39118530819",
+  "subject": {
+    "schema": "agentproof.release.subject.v1",
+    "owner": "AyobamiH",
+    "repository": "agentproof-release-canary",
+    "ownerId": 47716486,
+    "repositoryId": 1423718326,
+    "releaseId": 416342082,
+    "tagName": "v0.0.0-rc.2026101801",
+    "tagCommit": "1231076c12485a02fae3c38b0b850a25274985d5",
+    "packageAssetId": 653036082,
+    "packageAssetName": "agentproof-disposable-canary.tgz",
+    "packageDigest": "sha256:064f989c25b86269004401959b1e2aa68cc0b3acbf310ba647b892aa5e28b186",
+    "provenanceAssetId": 653046879,
+    "provenanceDigest": "sha256:fa76d7de87ba327ccd81943563af7daed1c87775e049e52a047df59c5b1475b4",
+    "provider": "github",
+    "prerelease": true,
+    "makeLatest": false
+  },
+  "subjectDigest": "5a14f49405c358d42658bab4a3cc1215b3f5eb079595523214b8e2a7f567a0e4",
+  "trustPins": [
+    "sha256:7bcdd49fd3025d805fe73c063b56ee9576b2b15b82d72cf29ee392d31698631d",
+    "sha256:59e12c7560667e99a3140cea9181cadbcb7aa023c7328ea76f39780698a1d36a",
+    "sha256:b365bc88efe4e02f7af22210b961fb6f801dece1ee5df736f9018ad0a6c8af5c",
+    "sha256:08f70564dbfe6e78ecbf2e8f8a5da552cfa58f3888a2e6326defca5f237dc4f1",
+    "sha256:ced7fb1c1fde59a6b3fb1379328bc8d00620b53332611565302fcfb5070b2795"
+  ],
+  "trustDigest": "b8c9b24d55153c700979453e25377cd018bb0214b08fdd1b49f3937a9c8b5511",
+  "status": "AUTHORISED",
+  "authorisedAt": "2026-10-18T10:15:35.216Z",
+  "receipt": null,
+  "handoff": null,
+  "decision": null,
+  "outcome": null,
+  "handoffHistory": [],
+  "audit": [
+    {
+      "sequence": 1,
+      "action": "authorise_exact_release",
+      "at": "2026-10-18T10:15:35.216Z",
+      "previousDigest": null,
+      "detail": {
+        "subjectDigest": "5a14f49405c358d42658bab4a3cc1215b3f5eb079595523214b8e2a7f567a0e4",
+        "trustDigest": "b8c9b24d55153c700979453e25377cd018bb0214b08fdd1b49f3937a9c8b5511"
+      },
+      "digest": "e8f9c65b3de9f9bfa7db2fe04305bcc90ee14f113e952567a179219f835e376d"
+    }
+  ]
+}

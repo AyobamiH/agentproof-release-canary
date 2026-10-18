@@ -19,3 +19,6 @@ jobs:
       - run: node --check scripts/source-pins.mjs
       - run: node scripts/canary.mjs validate
       - run: node --test scripts/*.test.mjs
+      - run: node scripts/read-only-preflight.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}

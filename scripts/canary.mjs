@@ -1,3 +1,4 @@
+import { resumeUnexecuted, readExistingAuthorisation, readServiceResponse } from './recovery.mjs';
 import { validateHealth } from './health.mjs';
 import { reconcilePublication } from './publication.mjs';
 import assert from 'node:assert/strict';
@@ -63,12 +64,14 @@ async function call(role, path, body, { publisher = false, anonymous = false, au
     method: 'POST', headers, body: JSON.stringify(body), redirect: 'error',
     signal: AbortSignal.timeout(45000),
   });
-  const raw = await response.text(); assert(raw.length <= 300000, 'oversized service response');
-  return { status: response.status, body: JSON.parse(raw) };
+  return readServiceResponse(response);
 }
 async function successful(role, path, body, options) {
   const r = await call(role, path, body, options);
-  assert.equal(r.status, 200, role + ' refused: ' + r.body.error); return r.body;
+  if (r.status !== 200) {
+    const error=new Error(role+' refused: '+r.body.error);error.status=r.status;throw error;
+  }
+  return r.body;
 }
 async function health() {
   const result = {};
@@ -90,16 +93,30 @@ async function authorize() {
   const cross = await call('donestate', '/v1/start', {}, { audience: 'approval' });
   assert.equal(cross.status, 401); denied.push({ role: 'donestate', test: 'wrong_audience', ...cross });
   await save('identity-denials', denied);
-  const recovery = process.env.GITHUB_RUN_ATTEMPT !== '1';
-  const run = await successful('donestate', recovery ? '/v1/status' : '/v1/start', {});
-  if (!recovery) assert.equal(run.status, 'AUTHORISED'); assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
-  assert.deepEqual(run.subject, trust.subject); assert.equal(run.subjectDigest, trust.subjectDigest);
-  await save('authorised', run);
-  assert.deepEqual(await successful('donestate', '/v1/start', {}), run);
-  await save('authorisation-duplicate', { identical: true, runId: run.runId });
+  const raw = await readFile(resolve(root, 'predecessor-authorisation.json'));
+  assert.equal(sha(raw), trust.recovery.authorisationSha256);
+  const prior = JSON.parse(raw);
+  assert.equal(prior.status, 'AUTHORISED');assert.equal(prior.githubRunId, trust.recovery.githubRunId);
+  assert.equal(prior.runId, trust.recovery.runId);assert.equal(prior.transactionId, trust.recovery.transactionId);
+  assert.deepEqual(prior.subject, trust.subject);assert.equal(prior.subjectDigest, trust.subjectDigest);
+  assert.equal(prior.trustDigest, sha(canonical({pins:prior.trustPins,workflowCommit:trust.recovery.workflowSha})));
+  assert.deepEqual(prior.trustPins, ['approval','receipt','opstruth','provenance','handoff'].map(r=>trust.keys[r].fingerprint));
+  assert.equal(prior.receipt, null);assert.equal(prior.handoff, null);assert.equal(prior.decision, null);
+  await save('authorised-predecessor', prior);
+  await save('historical-authority-check', {exact:true, currentOutcomeClaimed:false});
 }
 async function publish() {
-  const run = await load('authorised'); assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
+  const prior = await load('authorised-predecessor');
+  assert.equal(prior.runId, trust.recovery.runId);
+  const recovery = process.env.GITHUB_RUN_ATTEMPT === '1' ?
+    await resumeUnexecuted({predecessor:trust.recovery,subject:trust.subject,
+      githubRunId:process.env.GITHUB_RUN_ID,successful,save}) : null;
+  const run = recovery ? recovery.run :
+    await readExistingAuthorisation({githubRunId:process.env.GITHUB_RUN_ID,call,save});
+  assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
+  await save('authorised',run);
+  assert.deepEqual(await successful('donestate','/v1/start',{}),run);
+  await save('authorisation-duplicate',{identical:true,runId:run.runId});
   const seed = { stateDirectory: '/tmp/agentproof-release-canary-' + run.githubRunId,
     transactionId: run.transactionId, nonce: 'release-canary:' + run.githubRunId,
     idempotencyKey: 'release-canary:' + run.githubRunId, subject: trust.subject };
@@ -107,7 +124,8 @@ async function publish() {
     seed: { ...seed, subject: { ...seed.subject, releaseId: seed.subject.releaseId + 1 } },
   }, { publisher: true });
   assert.equal(wrong.status, 403); await save('wrong-target-denial', wrong);
-  const prepared = await successful('approval', '/v1/prepare', { seed }, { publisher: true });
+  const prepared = recovery ? recovery.prepared :
+    await successful('approval', '/v1/prepare', { seed }, { publisher: true });
   if (process.env.GITHUB_RUN_ATTEMPT === '1') assert.equal(prepared.state, 'reserved');
   await save('prepared', prepared);
   const { request } = prepared;
@@ -119,6 +137,7 @@ async function publish() {
   const reconciled = await reconcilePublication({ attempt: Number(process.env.GITHUB_RUN_ATTEMPT), request,
     intent: { runId: run.runId, transactionId: run.transactionId, subjectDigest: trust.subjectDigest },
     invoke: (path, body) => call('approval', path, body, { publisher: true }), save });
+  assert.equal(reconciled.completion.recoveryAuthorisationDigest, sha(canonical(run.recoveryAuthorisation)));
   await save('completion', reconciled.completion);
   await save('github-publication-response', reconciled.publicationResponse ?? null);
   const signed = await successful('receipt', '/v1/sign', { request, completion: reconciled.completion });

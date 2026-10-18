@@ -21,3 +21,64 @@ Owner: AyobamiH / AgentProof, OpsTruth and DoneState maintainers. To disable, se
 No deployment, signing secret, package publication, automatic retry or destructive cleanup is performed by PR validation. Main requires protected PR merging. The environment admits protected branches only.
 
 Health preflight separately compares each reviewed service build revision and the permitted workflow revision. Handoff artifact names come from successful producing-job outputs, so GitHub Re-run failed jobs can consume artifacts from an earlier successful prerequisite attempt.
+
+
+## Preserved first attempt and unexecuted recovery
+
+[Run 39118530819](https://github.com/AyobamiH/agentproof-release-canary/actions/runs/39118530819)
+failed in preparation because the release adapter omitted GitHub's required User-Agent.
+The release remained a draft and there was no execute request. Its original authorisation
+and artifacts remain intact. The reviewed replacement uses the same release, tag, assets,
+transaction and all five signing keys. `trust.json` explicitly pins the predecessor.
+
+The read-only authorizer validates the preserved original authority and five key pins.
+CI run 39119425333 proved that GitHub refuses private-draft reads using contents-read.
+Reservation therefore occurs in the existing contents-write publisher job, which sends its
+credential only to AgentProof. Before execution, it presents the signed reservation to
+DoneState's strictly predecessor-configured recovery, without forwarding any publisher credential.
+DoneState retains the full prior authorisation, appends an audit event and requires execution
+after recovery. No fence is reset, ambiguous execution retried, receipt rewritten or new draft created.
+Only the separate publish job has contents-write. The receipt signer, OpsTruth and DoneState
+never receive that credential. Any changed seed already reserved or attempted remains refused.
+
+Recovery now uses a causal signature gate: DoneState commits the preserved-authority transition before signing a domain-separated grant with its existing handoff key. AgentProof requires that exact grant to activate the same permanent reserved fence before execution. The signed completion records its digest. Timestamp checks remain additional freshness bounds, never the sole ordering proof. Withheld, forged, stale or wrong-attempt grants cannot execute; disabling recovery configuration cannot clear the stored gate.
+
+
+## Explicit pre-execution recovery boundary
+
+A later GitHub workflow attempt can inspect an already authorised run and reconcile
+an already attempted publication with GET-only calls. It cannot issue or activate
+a first-attempt grant or start publication with that grant. If original recovery
+never committed, its grant was not persisted, or the durable release remains
+reserved without an execution attempt, the workflow retains readback evidence and
+reports BLOCKED_REAUTHORISATION. It does not call this an ambiguous publication,
+reset the fence, create another draft, or silently retry the PATCH. Completing an
+interrupted pre-execution authorisation under a different producing attempt
+requires a separately reviewed authority transition. This explicit limitation
+preserves DoneState's same-attempt grant contract; rerun is not a general liveness
+guarantee for every interrupted phase.
+
+
+Preparation, DoneState recovery and AgentProof activation retry a lost response or transient
+server failure at most twice within the original workflow attempt. Each retry is the same
+idempotent operation and its evidence is saved. Publication is never retried.
+If the runner dies before execution, a later attempt records BLOCKED_REAUTHORISATION with the incomplete-authority or
+unattempted-reservation reason and stops. This is an explicit refusal boundary: the first-attempt grant
+cannot authorise a later attempt to publish. Preserve the unused fence and all authority
+history for fresh reviewed authorisation; do not reset the fence, create a new target or
+infer permission from a rerun. Later attempts may only read back an already attempted effect,
+with the original signed grant and producing attempt retained.
+
+The three-call preparation limit includes all recovery/activation calls; there are no extra
+duplicate probes after success. Source tests cover duplicate service requests. HTTP status
+survives non-JSON error responses, so intermediary 5xx failures use the same bounded retry
+policy. Malformed success and policy refusal responses stop without widening authority.
+
+Parse/read errors are sanitised before failure artifacts are written. HTTP status
+and the safe error class remain available for retry decisions; raw intermediary
+response text is never copied into the propagated error message.
+
+The publication step reuses the exact prepared request returned by recovery; it does not
+repeat preparation after activation. A known 4xx status always stops, including when its
+response-body read fails. Transport errors qualify for retry only before an HTTP status
+is known; 5xx statuses retain the bounded retry behavior.
