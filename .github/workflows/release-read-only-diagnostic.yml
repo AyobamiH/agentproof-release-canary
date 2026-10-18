@@ -7,14 +7,13 @@ concurrency:
   group: exact-release-read-only-diagnostic
   cancel-in-progress: false
 jobs:
-  observe:
+  source:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: agentproof-release-canary
     permissions:
-      # GitHub requires contents-write to read this unpublished draft.
-      # The script independently enforces exact-host/path GET-only requests.
-      contents: write
+      contents: read
+    outputs:
+      artifact_name: diagnostic-source-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -30,13 +29,43 @@ jobs:
           persist-credentials: false
       - run: npm ci --ignore-scripts && npm run build
         working-directory: vendor/agentproof
+      - run: |
+          mkdir -p diagnostic-source/scripts diagnostic-source/vendor/agentproof
+          cp scripts/read-only-release-diagnostic.mjs diagnostic-source/scripts/
+          cp trust.json diagnostic-source/
+          cp -R vendor/agentproof/dist diagnostic-source/vendor/agentproof/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diagnostic-source-${{ github.run_attempt }}
+          path: diagnostic-source/
+          if-no-files-found: error
+          retention-days: 90
+  observe:
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: agentproof-release-canary
+    permissions:
+      # Required only to observe the unpublished draft. No checkout or build here.
+      contents: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          token: ''
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.source.outputs.artifact_name }}
+          path: diagnostic-source/
+          github-token: ''
       - run: node scripts/read-only-release-diagnostic.mjs
+        working-directory: diagnostic-source
         env:
           READ_ONLY_GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: read-only-release-diagnostic-${{ github.run_attempt }}
-          path: evidence/
+          path: diagnostic-source/evidence/
           if-no-files-found: error
           retention-days: 90

@@ -10,7 +10,7 @@ const calls=[],originalFetch=globalThis.fetch;
 // Enforce GET-only independently of the imported adapter; deny any other URL.
 globalThis.fetch=async(url,options={})=>{
   assert.equal(options.method ?? 'GET','GET');assert(permitted.has(String(url)));
-  const response=await originalFetch(url,options);
+  const response=await originalFetch(url,{...options,redirect:"error"});
   calls.push({path:new URL(url).pathname,status:response.status,
     contentType:response.headers.get('content-type'),requestId:response.headers.get('x-github-request-id')});
   return response;
