@@ -19,6 +19,12 @@ export async function reconcilePublication({ attempt, request, intent, invoke, s
     await save('reconciliation-' + n, result);
     assert.equal(result.status, 200, 'read-only reconciliation refused');
     reconciled = result.body;
+    if (reconciled.state === 'reserved') {
+      await save('recovery-blocked', { state: 'BLOCKED_REAUTHORISATION',
+        reason: 'reservation_unattempted', githubRunAttempt: attempt,
+        additionalPublicationRequests: 0, ...intent });
+      throw Error('BLOCKED_REAUTHORISATION: unattempted reservation requires separately reviewed authority; no publication retry');
+    }
     if (reconciled.state === 'verified') break;
     await wait(2000);
   }

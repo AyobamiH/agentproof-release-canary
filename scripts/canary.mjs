@@ -1,4 +1,4 @@
-import { resumeUnexecuted } from './recovery.mjs';
+import { resumeUnexecuted, readExistingAuthorisation } from './recovery.mjs';
 import { validateHealth } from './health.mjs';
 import { reconcilePublication } from './publication.mjs';
 import assert from 'node:assert/strict';
@@ -109,7 +109,7 @@ async function publish() {
   const run = process.env.GITHUB_RUN_ATTEMPT === '1' ?
     await resumeUnexecuted({predecessor:trust.recovery,subject:trust.subject,
       githubRunId:process.env.GITHUB_RUN_ID,successful,save}) :
-    await successful('donestate','/v1/status',{});
+    await readExistingAuthorisation({githubRunId:process.env.GITHUB_RUN_ID,call,save});
   assert.equal(run.githubRunId, process.env.GITHUB_RUN_ID);
   await save('authorised',run);
   assert.deepEqual(await successful('donestate','/v1/start',{}),run);

@@ -28,3 +28,19 @@ export async function resumeUnexecuted({predecessor,subject,githubRunId,successf
   await save('recovery-activation',active);
   return run;
 }
+
+// A rerun may read existing authority; it cannot mint/activate a grant for
+// another producing attempt or spend an unexecuted first-attempt grant.
+export async function readExistingAuthorisation({githubRunId,call,save}) {
+  const observed=await call('donestate','/v1/status',{});
+  await save('recovery-authorisation-readback',observed);
+  if ([403,409].includes(observed.status) ||
+      (observed.status===200 && (observed.body.githubRunId!==githubRunId ||
+        !observed.body.recoveryAuthorisation))) {
+    await save('recovery-blocked',{state:'BLOCKED_REAUTHORISATION',
+      reason:'first_attempt_authorisation_incomplete',githubRunId,publicationRequests:0});
+    throw Error('BLOCKED_REAUTHORISATION: incomplete original recovery requires separately reviewed authority');
+  }
+  assert.equal(observed.status,200,'existing authority unavailable: no mutation permitted');
+  return observed.body;
+}

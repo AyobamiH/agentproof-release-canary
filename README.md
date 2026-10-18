@@ -42,3 +42,18 @@ Only the separate publish job has contents-write. The receipt signer, OpsTruth a
 never receive that credential. Any changed seed already reserved or attempted remains refused.
 
 Recovery now uses a causal signature gate: DoneState commits the preserved-authority transition before signing a domain-separated grant with its existing handoff key. AgentProof requires that exact grant to activate the same permanent reserved fence before execution. The signed completion records its digest. Timestamp checks remain additional freshness bounds, never the sole ordering proof. Withheld, forged, stale or wrong-attempt grants cannot execute; disabling recovery configuration cannot clear the stored gate.
+
+
+## Explicit pre-execution recovery boundary
+
+A later GitHub workflow attempt can inspect an already authorised run and reconcile
+an already attempted publication with GET-only calls. It cannot issue or activate
+a first-attempt grant or start publication with that grant. If original recovery
+never committed, its grant was not persisted, or the durable release remains
+reserved without an execution attempt, the workflow retains readback evidence and
+reports BLOCKED_REAUTHORISATION. It does not call this an ambiguous publication,
+reset the fence, create another draft, or silently retry the PATCH. Completing an
+interrupted pre-execution authorisation under a different producing attempt
+requires a separately reviewed authority transition. This explicit limitation
+preserves DoneState's same-attempt grant contract; rerun is not a general liveness
+guarantee for every interrupted phase.
