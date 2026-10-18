@@ -82,3 +82,8 @@ The publication step reuses the exact prepared request returned by recovery; it 
 repeat preparation after activation. A known 4xx status always stops, including when its
 response-body read fails. Transport errors qualify for retry only before an HTTP status
 is known; 5xx statuses retain the bounded retry behavior.
+
+
+## Read-only diagnosis of the second preparation refusal
+
+Run 39122966755 passed authorizer checks but was refused by AgentProof during preparation. Its failure artifacts and the unchanged draft remain preserved; no execution request or publication occurred. The separately dispatched read-only diagnostic uses the accepted AgentProof adapter and a GitHub-hosted job credential to distinguish token visibility from Worker-runtime behavior. GitHub requires contents-write for unpublished-draft reads; the script independently permits only GET to the exact repository, immutable tag and release metadata URLs. It has no OIDC permission, no AgentProof endpoint and no publication path. Only status, content type, request ID, safe error identifiers and public release metadata are retained.

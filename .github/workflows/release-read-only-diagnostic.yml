@@ -1,0 +1,42 @@
+name: Read-only release diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exact-release-read-only-diagnostic
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: agentproof-release-canary
+    permissions:
+      # GitHub requires contents-write to read this unpublished draft.
+      # The script independently enforces exact-host/path GET-only requests.
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: AyobamiH/agentproof
+          ref: d89f6d54709830ff49373ab7c2797c927ced8ac9
+          path: vendor/agentproof
+          persist-credentials: false
+      - run: npm ci --ignore-scripts && npm run build
+        working-directory: vendor/agentproof
+      - run: node scripts/read-only-release-diagnostic.mjs
+        env:
+          READ_ONLY_GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: read-only-release-diagnostic-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
