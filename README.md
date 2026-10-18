@@ -31,10 +31,14 @@ The release remained a draft and there was no execute request. Its original auth
 and artifacts remain intact. The reviewed replacement uses the same release, tag, assets,
 transaction and all five signing keys. `trust.json` explicitly pins the predecessor.
 
-The authorizer's contents-read credential goes only to AgentProof `/v1/prepare`, which can
-observe the private draft and atomically claim the existing permanent release fence.
-The signed reservation is then passed to DoneState's strictly predecessor-configured recovery.
+The read-only authorizer validates the preserved original authority and five key pins.
+CI run 39119425333 proved that GitHub refuses private-draft reads using contents-read.
+Reservation therefore occurs in the existing contents-write publisher job, which sends its
+credential only to AgentProof. Before execution, it presents the signed reservation to
+DoneState's strictly predecessor-configured recovery, without forwarding any publisher credential.
 DoneState retains the full prior authorisation, appends an audit event and requires execution
 after recovery. No fence is reset, ambiguous execution retried, receipt rewritten or new draft created.
 Only the separate publish job has contents-write. The receipt signer, OpsTruth and DoneState
 never receive that credential. Any changed seed already reserved or attempted remains refused.
+
+Recovery now uses a causal signature gate: DoneState commits the preserved-authority transition before signing a domain-separated grant with its existing handoff key. AgentProof requires that exact grant to activate the same permanent reserved fence before execution. The signed completion records its digest. Timestamp checks remain additional freshness bounds, never the sole ordering proof. Withheld, forged, stale or wrong-attempt grants cannot execute; disabling recovery configuration cannot clear the stored gate.

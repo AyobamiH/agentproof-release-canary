@@ -49,6 +49,7 @@
     "githubRunId": "39118530819",
     "workflowSha": "8e8bab4f0dc4cb71b06b3c21f0ec8d4dd80626c2",
     "runId": "12741172-631f-47b4-88c2-a63eeb1f9574",
-    "transactionId": "38cec4aa-b4d9-43fe-9712-e5eaec86cf21"
+    "transactionId": "38cec4aa-b4d9-43fe-9712-e5eaec86cf21",
+    "authorisationSha256": "cfb41521dd1a8e3cdbd2799c49b907b71dec54f2525f5e96e1378cad1bf0e6fe"
   }
 }
