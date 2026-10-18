@@ -1,0 +1,106 @@
+name: Release canary
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exact-disposable-release-416342082
+  cancel-in-progress: false
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: agentproof-release-canary
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - run: node scripts/canary.mjs authorize
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: authorization-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
+  publish:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: agentproof-release-canary
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: authorization-${{ github.run_attempt }}
+          path: evidence/
+      - run: node scripts/canary.mjs publish
+        env:
+          PUBLISHER_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: publication-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: agentproof-release-canary
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: canary
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - id: pins
+        run: node canary/scripts/source-pins.mjs
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: AyobamiH/agentproof
+          ref: ${{ steps.pins.outputs.agentproof }}
+          path: vendor/agentproof
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: AyobamiH/donestate
+          ref: ${{ steps.pins.outputs.donestate }}
+          path: vendor/donestate
+          persist-credentials: false
+      - run: npm ci --ignore-scripts && npm run build
+        working-directory: vendor/agentproof
+      - run: npm ci --ignore-scripts && npm run build
+        working-directory: vendor/donestate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: publication-${{ github.run_attempt }}
+          path: evidence/
+      - run: node canary/scripts/canary.mjs verify
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: release-acceptance-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90

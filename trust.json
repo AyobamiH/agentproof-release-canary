@@ -1,0 +1,48 @@
+{
+  "subject": {
+    "schema": "agentproof.release.subject.v1",
+    "owner": "AyobamiH",
+    "repository": "agentproof-release-canary",
+    "ownerId": 47716486,
+    "repositoryId": 1423718326,
+    "releaseId": 416342082,
+    "tagName": "v0.0.0-rc.2026101801",
+    "tagCommit": "1231076c12485a02fae3c38b0b850a25274985d5",
+    "packageAssetId": 653036082,
+    "packageAssetName": "agentproof-disposable-canary.tgz",
+    "packageDigest": "sha256:064f989c25b86269004401959b1e2aa68cc0b3acbf310ba647b892aa5e28b186",
+    "provenanceAssetId": 653046879,
+    "provenanceDigest": "sha256:fa76d7de87ba327ccd81943563af7daed1c87775e049e52a047df59c5b1475b4",
+    "provider": "github",
+    "prerelease": true,
+    "makeLatest": false
+  },
+  "subjectDigest": "5a14f49405c358d42658bab4a3cc1215b3f5eb079595523214b8e2a7f567a0e4",
+  "keys": {
+    "approval": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAE1oky8U/4AGzkVKv1Wtq2v3r/KafucTJ7d84BUzWWXU=\n-----END PUBLIC KEY-----\n",
+      "fingerprint": "sha256:7bcdd49fd3025d805fe73c063b56ee9576b2b15b82d72cf29ee392d31698631d"
+    },
+    "receipt": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAtZoxcPnb3smduNiuIYfethPaRXJxwZvm2cfXzWCJC9c=\n-----END PUBLIC KEY-----\n",
+      "fingerprint": "sha256:59e12c7560667e99a3140cea9181cadbcb7aa023c7328ea76f39780698a1d36a"
+    },
+    "opstruth": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqYZx2n3NZNwWMQ4z0XSN5vSX6kBZU/zYjwflNrAVWVQ=\n-----END PUBLIC KEY-----\n",
+      "fingerprint": "sha256:b365bc88efe4e02f7af22210b961fb6f801dece1ee5df736f9018ad0a6c8af5c"
+    },
+    "provenance": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAzVM8Hn02uzYB/MyAR3X2Xfbe9oIdvV3fqumnB8hPoM8=\n-----END PUBLIC KEY-----\n",
+      "fingerprint": "sha256:08f70564dbfe6e78ecbf2e8f8a5da552cfa58f3888a2e6326defca5f237dc4f1"
+    },
+    "handoff": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6jYGn21/ClEFMho4fNZ6QT7NOAy/dCTw2CniBXfEcNw=\n-----END PUBLIC KEY-----\n",
+      "fingerprint": "sha256:ced7fb1c1fde59a6b3fb1379328bc8d00620b53332611565302fcfb5070b2795"
+    }
+  },
+  "sources": {
+    "agentproof": "b796abea33cc6867acb7fb87954591771971e681",
+    "donestate": "51e0968aea47df365ec961eae530e983cb5db36a",
+    "opstruth": "08c53c4d78e6e280a78e4bb0e95de896108be401"
+  }
+}
